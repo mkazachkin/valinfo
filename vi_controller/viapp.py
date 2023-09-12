@@ -25,7 +25,7 @@ class ViApp:
                  '_sdate', '_edate', '_adate', '_log')
 
     def __init__(self, **kwargs):
-        self._log = ViLogger()
+        self._log = ViLogger('viapp.log')
         dbhost = kwargs.get('dbhost', None)
         dbname = kwargs.get('dbname', None)
         dbuser = kwargs.get('dbuser', None)

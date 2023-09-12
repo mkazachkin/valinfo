@@ -9,9 +9,9 @@ class ViLogger:
     ERROR: int = 3
     CRITICAL: int = 4
 
-    def __init__(self, total_actions: int = 0) -> None:
+    def __init__(self, log_file_name: str, total_actions: int = 0) -> None:
         logging.basicConfig(level=logging.DEBUG, filename=os.path.join(os.path.dirname(os.path.realpath(__file__)),
-                                                                       'viapp.log'), filemode='w')
+                                                                       log_file_name), filemode='w')
         self._total_actions: int = total_actions
         self._current_action: int = 0
 
@@ -19,7 +19,8 @@ class ViLogger:
         if is_action:
             self._current_action += 1
             if self._current_action <= self._total_actions:
-                logging.debug(int(self._current_action / self._total_actions * 100))
+                logging.debug(int(self._current_action /
+                              self._total_actions * 100))
         if level == self.INFO:
             logging.info(message)
         elif level == self.WARNING:
@@ -34,3 +35,9 @@ class ViLogger:
 
     def get_total_actions(self) -> int:
         return self._total_actions
+
+    def set_current_action(self, current_action: int) -> None:
+        self._current_action = current_action
+
+    def get_current_action(self) -> int:
+        return self._current_action

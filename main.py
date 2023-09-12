@@ -4,7 +4,7 @@ from vi_controller.viapp import ViApp
 parser = argparse.ArgumentParser(
     description='Добавление информации по перечням оценки')
 parser.add_argument('inout', choices=['IN', 'OUT'],
-                    help='Загрузка входящего (IN) или исходящих (OUT) перечней')
+                    help='Загрузка входящего(IN) или исходящего(OUT) перечня')
 parser.add_argument('--puid', type=str,
                     help='Идентификатор статьи ФЗ, по которой производится оценка')
 parser.add_argument('--luid', type=str,
@@ -34,11 +34,11 @@ args = parser.parse_args()
 pre_kwargs = dict()
 if args.inout == 'IN':
     if not args.puid:
-        argparse.ArgumentError('the following arguments are required: --puid')
+        raise Exception("The following arguments are required: --puid")
     if not args.lcode:
-        argparse.ArgumentError('the following arguments are required: --lcode')
+        raise Exception('The following arguments are required: --lcode')
     if not args.sdate:
-        argparse.ArgumentError('the following arguments are required: --sdate')
+        raise Exception('The following arguments are required: --sdate')
     pre_kwargs['path'] = args.path
     pre_kwargs['puid'] = args.puid
     pre_kwargs['luid'] = args.luid
