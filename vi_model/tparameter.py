@@ -2,6 +2,7 @@ from uuid import uuid4
 from uuid import UUID
 
 from vi_service.adapter import prepare_sql
+from vi_service.convertor import to_int
 from vi_service.convertor import to_str
 from vi_service.convertor import to_uuid
 
@@ -9,11 +10,11 @@ from vi_service.convertor import to_uuid
 class TParameter:
     def __init__(self):
         self._fields: tuple = ('param_id', 'link_id', 'param_typ_id', 'value')
-        self._types: tuple = (to_uuid, to_uuid, to_uuid, to_str)
+        self._types: tuple = (to_uuid, to_uuid, to_int, to_str)
         self._t_name = 't_parameter'
         self._data = dict()
 
-    def add(self, link_id: UUID, param_typ_id: UUID, value: str) -> UUID:
+    def add(self, link_id: UUID, param_typ_id: int, value: str) -> UUID:
         """
         Добавляет характеристику объекта из исходящего XML файла COST.
         Возвращает идентификатор характеристики.
@@ -21,11 +22,12 @@ class TParameter:
 
         Аргументы:
             link_id: UUID       - Идентификатор связи XML файла и объекта
-            param_typ_id: UUID  - Идентификатор вида характеристики
+            param_typ_id: int   - Идентификатор вида характеристики
             value: str          - Значение характеристики
         """
         param_id = uuid4()
-        values = [link_id, param_typ_id, value]
+        values = [link_id, param_typ_id,
+                  value.replace('\t', ' ').replace('\n', ' ').replace('&', '_amp;').strip()]
         self._data[param_id] = tuple(self._types[i+1](values[i])
                                      for i in range(len(values)))
         return param_id

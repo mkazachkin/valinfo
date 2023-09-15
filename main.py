@@ -3,14 +3,14 @@ from vi_controller.viapp import ViApp
 
 parser = argparse.ArgumentParser(
     description='Добавление информации по перечням оценки')
-parser.add_argument('inout', choices=['IN', 'OUT'],
+parser.add_argument('inout', choices=['IN', 'OUT', 'UPD'],
                     help='Загрузка входящего(IN) или исходящего(OUT) перечня')
-parser.add_argument('--puid', type=str,
+parser.add_argument('--puid', type=int,
                     help='Идентификатор статьи ФЗ, по которой производится оценка')
 parser.add_argument('--luid', type=str,
                     help='Идентификатор перечня оценки')
 parser.add_argument('--lcode', type=str,
-                    help='Входящий номер перечня оценки')
+                    help='Номер перечня оценки')
 parser.add_argument('--lanno', type=str,
                     help='Описание входящего перечня оценки')
 parser.add_argument('--adate', type=str,
@@ -55,11 +55,12 @@ if args.inout == 'IN':
         print('Работа завершена успешно.')
     else:
         print('Работа завершена с ошибкой.', 'Error')
+
 if args.inout == 'OUT':
     if not args.luid:
-        argparse.ArgumentError('the following arguments are required: --luid')
+        raise Exception('The following arguments are required: --luid')
     if not args.edate:
-        argparse.ArgumentError('the following arguments are required: --edate')
+        raise Exception('The following arguments are required: --edate')
     pre_kwargs['path'] = args.path
     pre_kwargs['luid'] = args.luid
     pre_kwargs['edate'] = args.edate
@@ -67,9 +68,29 @@ if args.inout == 'OUT':
     pre_kwargs['dbname'] = args.name
     pre_kwargs['dbuser'] = args.user
     pre_kwargs['dbpwrd'] = args.pwrd
-
     app = ViApp(**pre_kwargs)
     if app.out_xml():
+        print('Работа завершена успешно.')
+    else:
+        print('Работа завершена с ошибкой.', 'Error')
+
+if args.inout == 'UPD':
+    if not args.luid:
+        raise Exception('The following arguments are required: --luid')
+    if not args.lcode:
+        raise Exception('The following arguments are required: --lcode')
+    pre_kwargs['puid'] = args.puid
+    pre_kwargs['path'] = args.path
+    pre_kwargs['luid'] = args.luid
+    pre_kwargs['lcode'] = args.lcode
+    pre_kwargs['lanno'] = args.lanno
+    pre_kwargs['edate'] = args.edate
+    pre_kwargs['dbhost'] = args.host
+    pre_kwargs['dbname'] = args.name
+    pre_kwargs['dbuser'] = args.user
+    pre_kwargs['dbpwrd'] = args.pwrd
+    app = ViApp(**pre_kwargs)
+    if app.upd_xml():
         print('Работа завершена успешно.')
     else:
         print('Работа завершена с ошибкой.', 'Error')

@@ -14,9 +14,9 @@ def parcels(realty_soup: BeautifulSoup) -> list:
         realty_soup: soup   - Ссылка на XML объекта недвижимости
     """
     try:
-        return ['05553d82-ee6a-4403-8d36-5bbca0d0b71a', dictionary.d_parcels[realty_soup.find('Name').get_text()]]
+        return [1000, dictionary.d_parcels[realty_soup.find('Name').get_text()]]
     except (AttributeError, KeyError, TypeError):
-        return ['05553d82-ee6a-4403-8d36-5bbca0d0b71a', None]
+        return [1000, None]
 
 
 def area(realty_soup: BeautifulSoup) -> list:
@@ -28,9 +28,9 @@ def area(realty_soup: BeautifulSoup) -> list:
         realty_soup: soup   - Ссылка на XML объекта недвижимости
     """
     try:
-        return ['e5d72f5b-aff1-4e68-9fd0-f18ec505fd3e', realty_soup.find('Area').find('Area').get_text()]
+        return [2000, realty_soup.find('Area').find('Area').get_text()]
     except (AttributeError, TypeError):
-        return ['e5d72f5b-aff1-4e68-9fd0-f18ec505fd3e', None]
+        return [2000, None]
 
 
 def location(realty_soup: BeautifulSoup) -> list:
@@ -42,9 +42,9 @@ def location(realty_soup: BeautifulSoup) -> list:
         realty_soup: soup   - Ссылка на XML объекта недвижимости
     """
     try:
-        return ['7b885d26-3083-499d-bde8-959c08999e00', realty_soup.find('ReadableAddress').get_text()]
+        return [3000, realty_soup.find('ReadableAddress').get_text()]
     except (AttributeError, TypeError):
-        return ['7b885d26-3083-499d-bde8-959c08999e00', None]
+        return [3000, None]
 
 
 def category(realty_soup: BeautifulSoup) -> list:
@@ -56,10 +56,10 @@ def category(realty_soup: BeautifulSoup) -> list:
         realty_soup: soup   - Ссылка на XML объекта недвижимости
     """
     try:
-        return ['33e95a82-e9f5-483d-870b-4d2574e1d36e',
+        return [4000,
                 dictionary.d_categories[realty_soup.find('Category').get_text()]]
     except (AttributeError, TypeError):
-        return ['33e95a82-e9f5-483d-870b-4d2574e1d36e', None]
+        return [4000, None]
 
 
 def utilization(realty_soup: BeautifulSoup) -> list:
@@ -71,34 +71,17 @@ def utilization(realty_soup: BeautifulSoup) -> list:
         realty_soup: soup   - Ссылка на XML объекта недвижимости
     """
     try:
-        return ['55f94c3f-8685-46f2-999d-4e206ec9a517',
-                dictionary.d_util[realty_soup.find('Utilization')['Utilization']]]
+        return [5000, dictionary.d_util[realty_soup.find('Utilization')['Utilization']]]
     except (AttributeError, TypeError):
-        return ['55f94c3f-8685-46f2-999d-4e206ec9a517', None]
+        return [5000, None]
     except KeyError:
         try:
-            return ['55f94c3f-8685-46f2-999d-4e206ec9a517',
-                    dictionary.d_util[realty_soup.find('Utilization')['PermittedUseText']]]
+            return [5000, dictionary.d_util[realty_soup.find('Utilization')['PermittedUseText']]]
         except KeyError:
             try:
-                return ['55f94c3f-8685-46f2-999d-4e206ec9a517',
-                        dictionary.d_util[realty_soup.find('Utilization')['ByDoc']]]
+                return [5000, dictionary.d_util[realty_soup.find('Utilization')['ByDoc']]]
             except KeyError:
-                return ['55f94c3f-8685-46f2-999d-4e206ec9a517', None]
-
-
-def cadcost(realty_soup: BeautifulSoup) -> list:
-    """
-    Кадастровая стоимость
-    Возвращает id характеристики и ее значение из XML
-
-    Аргументы:
-        realty_soup: soup   - Ссылка на XML объекта недвижимости
-    """
-    try:
-        return ['776b49df-7499-4b89-992e-5adf6d6c7d31', realty_soup.find('CadastralCost')['Value']]
-    except (AttributeError, KeyError, TypeError):
-        return ['776b49df-7499-4b89-992e-5adf6d6c7d31', None]
+                return [5000, None]
 
 
 def spec_cadcost(realty_soup: BeautifulSoup) -> list:
@@ -110,23 +93,23 @@ def spec_cadcost(realty_soup: BeautifulSoup) -> list:
         realty_soup: soup   - Ссылка на XML объекта недвижимости
     """
     try:
-        return ['4fd24453-7cd8-4378-a212-57870da84d06', realty_soup.find('Specific_CadastralCost')['Value']]
+        return [6000, realty_soup.find('Specific_CadastralCost')['Value']]
     except (AttributeError, KeyError, TypeError):
-        return ['4fd24453-7cd8-4378-a212-57870da84d06', None]
+        return [6000, None]
 
 
-def fond_date(realty_soup: BeautifulSoup) -> list:
+def cadcost(realty_soup: BeautifulSoup) -> list:
     """
-    Дата применения кадастровой стоимости
+    Кадастровая стоимость
     Возвращает id характеристики и ее значение из XML
 
     Аргументы:
         realty_soup: soup   - Ссылка на XML объекта недвижимости
     """
     try:
-        return ['c71efc65-648d-4429-b1bb-23a62a933285', realty_soup['FoundationDate']]
+        return [7000, realty_soup.find('CadastralCost')['Value']]
     except (AttributeError, KeyError, TypeError):
-        return ['c71efc65-648d-4429-b1bb-23a62a933285', None]
+        return [7000, None]
 
 
 def group_dict(realty_soup: BeautifulSoup) -> Optional[dict]:
@@ -140,7 +123,8 @@ def group_dict(realty_soup: BeautifulSoup) -> Optional[dict]:
     gr_soup = realty_soup.select('Group_Real_Estate')
     for realty_gr in gr_soup:
         try:
-            result[realty_gr.find('ID_Group').get_text()] = realty_gr.find('Name_Group').get_text()
+            result[realty_gr.find('ID_Group').get_text()] = realty_gr.find(
+                'Name_Group').get_text()
         except (AttributeError, KeyError, TypeError):
             return None
     return result
@@ -150,4 +134,18 @@ def group_dict_id() -> UUID:
     """
     Возвращает идентификатор значения группы расчета
     """
-    return UUID('05250279-376a-4793-82d4-4ab1ff3b0626')
+    return 8000
+
+
+def fond_date(realty_soup: BeautifulSoup) -> list:
+    """
+    Дата применения кадастровой стоимости
+    Возвращает id характеристики и ее значение из XML
+
+    Аргументы:
+        realty_soup: soup   - Ссылка на XML объекта недвижимости
+    """
+    try:
+        return [9000, realty_soup['FoundationDate']]
+    except (AttributeError, KeyError, TypeError):
+        return [9000, None]

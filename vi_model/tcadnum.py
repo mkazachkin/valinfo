@@ -3,28 +3,28 @@ from uuid import uuid4
 from uuid import UUID
 
 from vi_service.adapter import prepare_sql
+from vi_service.convertor import to_int
 from vi_service.convertor import to_str
 from vi_service.convertor import to_uuid
-
 
 class TCadnum:
     def __init__(self):
         self._fields: tuple = ('cadnum_id', 'realty_id', 'cadnum_code')
-        self._types: tuple = (to_uuid, to_uuid, to_str)
+        self._types: tuple = (to_uuid, to_int, to_str)
         self._t_name = 't_cadnum'
         self._db = dict()
         self._data = dict()
         self._cod = dict()
         self._ids = dict()
 
-    def add(self, realty_id: UUID, cadnum_code: str) -> UUID:
+    def add(self, realty_id: int, cadnum_code: str) -> UUID:
         """
         Добавляет кадастровый номер в данные, если он не был добавлен ранее.
         Возвращает идентификатор кадастрвого номера.
         Если данные приходят в виде строк, то преобразует в соответствующий столбцу тип.
 
         Аргументы:
-            realty_id: UUID     - Идентификатор вида объекта недвижимости
+            realty_id: int      - Идентификатор вида объекта недвижимости
             cadnum_code: str    - Кадастровый номер
             cadnum_id: UUID     - Ранее присвоенный идентификатор объекта недвижимости
         """

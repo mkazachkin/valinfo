@@ -36,7 +36,7 @@ function search_cadnum() {
         };
         $("#res_table").html("");
         $.ajax({
-            url: 'valinfo.php',
+            url: 'scripts/valinfo.php',
             type: 'POST',
             dataType: 'text',
             data: post_val,

@@ -1,16 +1,15 @@
 from typing import Optional
-from uuid import UUID
 
 from vi_service.adapter import prepare_sql
+from vi_service.convertor import to_int
 from vi_service.convertor import to_str
-from vi_service.convertor import to_uuid
 
 
 class DParagraph:
     def __init__(self):
         self._fields: tuple = (
             'paragraph_id', 'paragraph_code', 'paragraph_annotation')
-        self._types: tuple = (to_uuid, to_str, to_str)
+        self._types: tuple = (to_int, to_str, to_str)
         self._t_name = 'd_paragraph'
         self._data = dict()
         self._cod = dict()
@@ -33,7 +32,7 @@ class DParagraph:
         self._cod[paragraph_code] = paragraph_id
         self._ids[paragraph_id] = paragraph_code
 
-    def get_id(self, paragraph_code: str) -> Optional[UUID]:
+    def get_id(self, paragraph_code: str) -> Optional[int]:
         """
         Возвращает идентификатор статьи ФЗ о кадастровой оценке по коду.
 
@@ -45,14 +44,14 @@ class DParagraph:
         except KeyError:
             return None
 
-    def get_code(self, paragraph_id: UUID) -> str:
+    def get_code(self, paragraph_id: int) -> str:
         """
         Возвращает код статьи ФЗ о кадастровой оценке по идентифиикатору.
 
         Аргументы:
-            paragraph_id: UUID  - Идентификатор статьи ФЗ о кадастровой оценке
+            paragraph_id: int   - Идентификатор статьи ФЗ о кадастровой оценке
         """
-        return self._ids[to_uuid(paragraph_id)]
+        return self._ids[to_int(paragraph_id)]
 
     @property
     def data(self) -> dict:
