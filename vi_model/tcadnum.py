@@ -7,17 +7,21 @@ from vi_service.convertor import to_int
 from vi_service.convertor import to_str
 from vi_service.convertor import to_uuid
 
+
 class TCadnum:
     def __init__(self):
-        self._fields: tuple = ('cadnum_id', 'realty_id', 'cadnum_code')
-        self._types: tuple = (to_uuid, to_int, to_str)
+        self._fields: tuple = ('cadnum_id', 'realty_id',
+                               'cadnum_code', 'first_list_id')
+        self._types: tuple = (to_uuid, to_int, to_str, to_uuid)
         self._t_name = 't_cadnum'
         self._db = dict()
         self._data = dict()
         self._cod = dict()
         self._ids = dict()
+        self._new: int = 0
+        self._old: int = 0
 
-    def add(self, realty_id: int, cadnum_code: str) -> UUID:
+    def add(self, realty_id: int, cadnum_code: str, list_id: UUID) -> UUID:
         """
         Добавляет кадастровый номер в данные, если он не был добавлен ранее.
         Возвращает идентификатор кадастрвого номера.
@@ -27,16 +31,19 @@ class TCadnum:
             realty_id: int      - Идентификатор вида объекта недвижимости
             cadnum_code: str    - Кадастровый номер
             cadnum_id: UUID     - Ранее присвоенный идентификатор объекта недвижимости
+            list_id: UUID       - Идентификатор перечня, в котором пришел кадастровый номер
         """
         if cadnum_code in self._cod.keys():
+            self._old += 1
             return self._cod[cadnum_code]
         else:
             cadnum_id = uuid4()
-            values = [realty_id, cadnum_code]
+            values = [realty_id, cadnum_code, list_id]
             self._data[cadnum_id] = tuple(self._types[i+1](values[i])
                                           for i in range(len(values)))
             self._cod[cadnum_code] = cadnum_id
             self._ids[cadnum_id] = cadnum_code
+            self._new += 1
             return cadnum_id
 
     def add_db(self, cadnum_id: str, cadnum_code: str):
@@ -109,3 +116,17 @@ class TCadnum:
         Возвращает название теблицы в БД
         """
         return self._t_name
+
+    @property
+    def new_cadnums(self) -> int:
+        """
+        Возвращает количество вновь добавленных кадастровых номеров
+        """
+        return self._new
+
+    @property
+    def old_cadnums(self) -> int:
+        """
+        Возвращает количество обработанных существующих кадастровых номеров
+        """
+        return self._old

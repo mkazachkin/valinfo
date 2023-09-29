@@ -14,14 +14,15 @@ class TListXml:
         self._t_name = 't_list_xml'
         self._data = dict()
 
-    def add(self, list_id: UUID, xml_name: str, is_result: bool) -> UUID:
+    def add(self, list_id: UUID, xml_name: str, is_result: bool = False) -> UUID:
         """
         Добавляет XML файл в список обработанных файлов, возвращает идентификатор файла.
         Если данные приходят в виде строк, то преобразует в соответствующий столбцу тип.
 
         Аргументы:
             list_id: UUID       - Идентификатор перечня, по которому сформирован файл
-            xml_name: str  - Имя файла
+            xml_name: str       - Имя файла
+            is_result: bool     - Признак файла с результатами оценки
         """
         xml_id = uuid4()
         values = [list_id, xml_name, is_result]

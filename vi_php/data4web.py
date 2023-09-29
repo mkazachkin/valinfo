@@ -43,31 +43,31 @@ class Data4Web:
             for level2 in range(10):
                 for level3 in range(10):
                     select_str: str = f'''
-                    select
+                    SELECT
                         tc.cadnum_code,
-                        tl.list_code,
+                        tl.act_code,
                         dpt.param_annotation,
                         tp.value,
                         du.unit_annotation
-                    from
+                    FROM
                         t_parameter tp
-                    left join l_xml_to_cadnum lxc on
+                    LEFT JOIN l_xml_to_cadnum lxc ON
                         tp.link_id = lxc.link_id
-                    left join t_cadnum tc on
+                    LEFT JOIN t_cadnum tc ON
                         lxc.cadnum_id = tc.cadnum_id
-                    left join t_list_xml tlx on
+                    LEFT JOIN t_list_xml tlx ON
                         lxc.xml_id = tlx.xml_id
-                    left join t_list tl on
+                    LEFT JOIN t_list tl ON
                         tlx.list_id = tl.list_id
-                    left join d_parameter_type dpt on
+                    LEFT JOIN d_parameter_type dpt ON
                         tp.param_typ_id = dpt.param_typ_id
-                    left join d_unit du on
+                    LEFT JOIN d_unit du ON
                         dpt.unit_id = du.unit_id
-                    where right(replace(tc.cadnum_code, ':', ''), 3) = '{level1}{level2}{level3}'
-                    order by
+                    WHERE right(replace(tc.cadnum_code, ':', ''), 3) = '{level1}{level2}{level3}'
+                    ORDER BY
                         tc.cadnum_code,
-                        tl.end_date,
-                        dpt.param_code;
+                        tl.act_date,
+                        dpt.param_typ_id;
                     '''
                     self._log.print_log("Запрос подготовлен",
                                         self._log.INFO, self._log.IS_ACTION)

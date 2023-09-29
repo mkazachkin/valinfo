@@ -5,6 +5,7 @@ from vi_service.adapter import prepare_sql
 from vi_service.convertor import to_int
 from vi_service.convertor import to_str
 from vi_service.convertor import to_uuid
+from vi_service.convertor import to_date
 
 
 class TParameter:
@@ -13,6 +14,8 @@ class TParameter:
         self._types: tuple = (to_uuid, to_uuid, to_int, to_str)
         self._t_name = 't_parameter'
         self._data = dict()
+        self._fdate_f = to_date('2099/01/01')
+        self._fdate_l = to_date('1800/01/01')
 
     def add(self, link_id: UUID, param_typ_id: int, value: str) -> UUID:
         """
@@ -30,6 +33,11 @@ class TParameter:
                   value.replace('\t', ' ').replace('\n', ' ').replace('&', '_amp;').strip()]
         self._data[param_id] = tuple(self._types[i+1](values[i])
                                      for i in range(len(values)))
+        # Если у нас характеристика - это дата добавления в ЕГРН, то запоминаем ее
+        if param_typ_id == 9000 and to_date(value) < self._fdate_f:
+            self._fdate_f = to_date(value)
+        if param_typ_id == 9000 and to_date(value) > self._fdate_l:
+            self._fdate_l = to_date(value)
         return param_id
 
     @property
@@ -59,3 +67,10 @@ class TParameter:
         Возвращает название теблицы в БД
         """
         return self._t_name
+
+    @property
+    def found_dates(self) -> list:
+        """
+        Возвращает список с первой и последней датой периода возникновения основания для определения КС
+        """
+        return [self._fdate_f, self._fdate_l]

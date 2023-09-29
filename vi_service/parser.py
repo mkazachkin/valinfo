@@ -130,11 +130,11 @@ def group_dict(realty_soup: BeautifulSoup) -> Optional[dict]:
     return result
 
 
-def group_dict_id() -> UUID:
+def group_dict_id() -> list:
     """
     Возвращает идентификатор значения группы расчета
     """
-    return 8000
+    return [8000, None]
 
 
 def fond_date(realty_soup: BeautifulSoup) -> list:

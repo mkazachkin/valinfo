@@ -3,11 +3,14 @@ from uuid import UUID
 
 from vi_service.adapter import prepare_sql
 from vi_service.convertor import to_uuid
+from vi_service.convertor import to_bool
+from vi_service.convertor import to_bool
 
 
 class LXmlToCadnum:
     def __init__(self):
-        self._fields: tuple = ('link_id', 'xml_id', 'cadnum_id')
+        self._fields: tuple = ('link_id', 'xml_id',
+                               'cadnum_id')
         self._types: tuple = (to_uuid, to_uuid, to_uuid)
         self._t_name = 'l_xml_to_cadnum'
         self._data = dict()
