@@ -41,20 +41,24 @@ class TList:
             in_date: date                   - Дата сопроводительного письма с входящим перечнем
             in_new_objects_num: int         - Количество вновь учтенных объектов во входящем перечне
             in_old_objects_num: int         - Количество ранее учтенных объектов во входящем перечне
-            found_date_f: date              - Начальная дата периода возникновения основания для определения КС объектов входящего перечня
-            found_date_l: date              - Конечная дата периода возникновения основания для определения КС объектов входящего перечня
+            found_date_f: date              - Начальная дата периода возникновения основания
+                                              для определения КС объектов входящего перечня
+            found_date_l: date              - Конечная дата периода возникновения основания
+                                              для определения КС объектов входящего перечня
             act_code: str                   - Номер акта определения КС
             act_date: date                  - Дата составления акта определения КС
             out_new_objects_rated: int      - Количество вновь учтенных объектов, для которых была проведена оценка КС
             out_old_objects_rated: int      - Количество ранее учтенных объектов, для которых была проведена оценка КС
-            out_objects_not_rated: int      - Количество объектов, для которых определение кадастровой стоимости не проводилось
+            out_objects_not_rated: int      - Количество объектов, для которых определение кадастровой стоимости
+                                              не проводилось
         """
-        if in_code in self._cod.keys():
+        try:
             list_id = self._cod[in_code]
-        else:
+        except KeyError:
             list_id = uuid4()
         values = [paragraph_id, rr_code, rr_date, in_code, in_date, in_new_objects_num, in_old_objects_num,
-                  found_date_f, found_date_l, act_code, act_date, out_new_objects_rated, out_old_objects_rated, out_objects_not_rated]
+                  found_date_f, found_date_l, act_code, act_date, out_new_objects_rated, out_old_objects_rated,
+                  out_objects_not_rated]
         self._data[list_id] = tuple(self._types[i+1](values[i])
                                     for i in range(len(values)))
         self._cod[in_code] = list_id
@@ -81,17 +85,16 @@ class TList:
             in_code: str    - Входящий номер сопроводительного письма с входящим перечнем
             gen_id: bool    - Сгенерировать новый идентификатор, если он отсутствует
         """
-        if gen_id:
-            if not (in_code in self._cod.keys()):
+        try:
+            return self._cod[to_str(in_code)]
+        except KeyError:
+            if gen_id:
                 list_id = uuid4()
                 self._cod[in_code] = list_id
                 self._ids[list_id] = in_code
-            return self._cod[to_str(in_code)]
-        else:
-            if not (in_code in self._cod.keys()):
-                return None
+                return list_id
             else:
-                return self._cod[to_str(in_code)]
+                return None
 
     def get_code(self, list_id: UUID) -> Optional[str]:
         """

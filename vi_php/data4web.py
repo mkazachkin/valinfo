@@ -2,6 +2,7 @@ import os
 import shutil
 import ssl
 import urllib.request
+import urllib.error
 
 import csv
 import ftplib
@@ -85,7 +86,8 @@ class Data4Web:
                                            'data.csv'), 'w', newline='', encoding='utf-8') as csv_file:
                         writer = csv.writer(csv_file, delimiter='&')
                         writer.writerow(
-                            tuple(['Кадастровый номер', 'Тур оценки', 'Характеристика', 'Значение', 'Единица измерения']))
+                            tuple(['Кадастровый номер', 'Тур оценки', 'Характеристика', 'Значение',
+                                   'Единица измерения']))
                         for row in result:
                             writer.writerow(row)
                     csv_file.close()
@@ -113,7 +115,7 @@ class Data4Web:
         total_size = os.path.getsize(os.path.join(
             self._path, 'upload', 'upload.zip'))
         actions = int(total_size / f_blocksize) + 1
-        self._log.set_current_action(round(actions * 1.5, 0))  # 60 %
+        self._log.set_current_action(int(round(actions * 1.5, 0)))  # 60 %
         self._log.set_total_actions(actions + self._log.get_current_action())
         self._session.storbinary('STOR upload.zip', zip_file,
                                  callback=self._handle, blocksize=f_blocksize)
@@ -121,7 +123,7 @@ class Data4Web:
         zip_file.close()
         self._session.quit()
 
-    def _req_url(self, url: str) -> None:
+    def _req_url(self, url: str) -> str:
         """
         Вызывает адрес в сети интернет и возвращает ответ
         Аргументы:
@@ -138,7 +140,7 @@ class Data4Web:
                 'Вызов архиватора закончился ошибкой', self._log.ERROR)
             return 'failed'
 
-    def _handle(self, block) -> None:
+    def _handle(self) -> None:
         """
         Отправляет в лог-файл информацию о переданных блоках на сайт
         """

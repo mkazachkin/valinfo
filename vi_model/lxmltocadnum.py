@@ -1,10 +1,8 @@
-from uuid import uuid4
 from uuid import UUID
+from uuid import uuid4
 
 from vi_service.adapter import prepare_sql
 from vi_service.convertor import to_uuid
-from vi_service.convertor import to_bool
-from vi_service.convertor import to_bool
 
 
 class LXmlToCadnum:

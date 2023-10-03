@@ -1,6 +1,13 @@
 import argparse
 from vi_controller.viapp import ViApp
 
+
+def to_bool(obj) -> bool:
+    if isinstance(obj, bool):
+        return obj
+    return obj.lower() in ('yes', 'true', 't', 'y', '1')
+
+
 parser = argparse.ArgumentParser(
     description='Загрузка результатов оценки в БД')
 parser.add_argument('--luid', type=str, required=True,
@@ -19,7 +26,7 @@ parser.add_argument('--user', dest='user', type=str, required=True,
                     default=None, help='Пользователь базы данных')
 parser.add_argument('--pwrd', dest='pwrd', type=str, required=True,
                     default=None, help='Пароль доступа к базе данных')
-parser.add_argument('--updt', type=bool, required=True,
+parser.add_argument('--updt', type=to_bool, required=True,
                     help='Признак загрузки исправленного перечня')
 args = parser.parse_args()
 

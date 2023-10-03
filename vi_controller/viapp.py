@@ -49,7 +49,7 @@ class ViApp:
         self._fdate_f = convertor.to_date(kwargs.get('fdate_f', None))
         self._fdate_l = convertor.to_date(kwargs.get('fdate_l', None))
 
-        self._initial_cadnums = list()
+        self._initial_cadnums = dict()
         self._new_cadnums_rated: int = 0
         self._old_cadnums_rated: int = 0
         self._total_cadnums: int = 0
@@ -254,7 +254,7 @@ class ViApp:
         cursor.close()
         self._log.print_log(
             'Перенос характеристик из оригинального перечня завершен', self._log.INFO, self._log.IS_ACTION)
-        self._luid = self._t_list.add(self._puid, self._rcode, self._rdate, self._icode, self._idate,
+        self._luid = self._t_list.add(21, self._rcode, self._rdate, self._icode, self._idate,
                                       0, self._total_cadnums, self._fdate_f, self._fdate_l,
                                       self._tcode, self._tdate, self._new_cadnums_rated, self._old_cadnums_rated,
                                       self._total_cadnums - self._new_cadnums_rated - self._old_cadnums_rated)
@@ -324,9 +324,12 @@ class ViApp:
                     self._log.print_log(f'Кадастровый номер {cadnum_code} не найден во входящем списке.',
                                         self._log.ERROR)
                     return False
-                if cadnum_id in self._initial_cadnums:
-                    self._new_cadnums_rated += 1
-                else:
+                try:
+                    if self._initial_cadnums[cadnum_code]:
+                        self._new_cadnums_rated += 1
+                    else:
+                        self._old_cadnums_rated += 1
+                except KeyError:
                     self._old_cadnums_rated += 1
                 link_id = self._l_xml_to_cadnum.add(xml_id, cadnum_id)
                 spec_cadcost = parser.spec_cadcost(realty_soup)
@@ -347,7 +350,8 @@ class ViApp:
             f"act_date = '{self._tdate}', " +
             f"out_new_objects_rated = {self._new_cadnums_rated}, " +
             f"out_old_objects_rated = {self._old_cadnums_rated}, " +
-            f"out_objects_not_rated = {self._total_cadnums - self._new_cadnums_rated - self._old_cadnums_rated};")
+            f"out_objects_not_rated = {self._total_cadnums - self._new_cadnums_rated - self._old_cadnums_rated} " +
+            f"WHERE list_id = '{str(self._luid)}'::uuid;")
         cursor.close()
 
     def _fill_cadnum(self) -> None:
@@ -378,8 +382,9 @@ class ViApp:
         """
         cursor = self._conn.cursor()
         cursor.execute(
-            f"SELECT cadnum_id FROM {self._t_cadnum.t_name} WHERE first_list_id = '{str(self._luid)}';")
-        self._initial_cadnums = [elem[0] for elem in cursor.fetchall()]
+            f"SELECT cadnum_code FROM {self._t_cadnum.t_name} WHERE first_list_id = '{str(self._luid)}';")
+        for elem in cursor.fetchall():
+            self._initial_cadnums[elem[0]] = True
         cursor.close()
 
     def _fill_total_cadnums(self) -> None:
@@ -404,7 +409,7 @@ class ViApp:
         self._log.print_log(
             f"Таблица '{obj.t_name}' подготовлена к загрузке.", self._log.INFO, self._log.IS_ACTION)
 
-    def _get_inlist_data(self, list_id: UUID) -> tuple:
+    def _get_inlist_data(self, list_id: UUID) -> list:
         """
         Возвращает входящие данные перечня по идентификатору.
 

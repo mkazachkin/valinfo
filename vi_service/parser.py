@@ -1,6 +1,6 @@
-from bs4 import BeautifulSoup
 from typing import Optional
-from uuid import UUID
+
+from bs4 import BeautifulSoup
 
 from vi_model import dictionary
 
