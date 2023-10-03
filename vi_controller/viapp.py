@@ -70,8 +70,6 @@ class ViApp:
 
         self._fill_list_codes()
         self._log.print_log('Список перечней синхронизирован.')
-        self._fill_cadnum()
-        self._log.print_log('Кадастровые номера синхронизированы.')
 
     def __del__(self):
         self._conn.close()
@@ -81,6 +79,9 @@ class ViApp:
         Считывает входящий XML файл и парсит входящие характеристики объектов недвижимости.
         Возвращает True, если операция завершилась успешно, False, если возникла ошибка.
         """
+        self._fill_cadnum()
+        self._log.print_log('Кадастровые номера синхронизированы.')
+
         if self._t_list.get_id(self._icode, False):
             self._log.print_log(
                 'Перечень с указанным номером уже был ранее загружен.', self._log.ERROR)
@@ -151,6 +152,11 @@ class ViApp:
                               то добавлением данных в БД и коммитить будет метод исправления.
                               По-умолчанию False.
         """
+        if not updating:
+            self._fill_cadnum(self._luid)
+            self._log.print_log('Кадастровые номера синхронизированы.')
+            self._fill_initial_cadnums()
+
         fd_files = get_xml_list(self._path, 'fd_*.xml')
         cost_files = get_xml_list(self._path, 'cost_*.xml')
         if fd_files is None:
@@ -173,7 +179,6 @@ class ViApp:
             return False
         self._log.print_log('Загрузка исходящего COST перечня начата.')
 
-        self._fill_initial_cadnums()
         if not self._cost_xml(cost_files):
             return False
         if not updating:
@@ -194,6 +199,9 @@ class ViApp:
         Возвращает True, если операция завершилась успешно, False, если возникла ошибка.
         """
         # Сохраним старый id перечня, чтобы потом взять из него нужные характеристики
+        self._fill_cadnum(self._luid)
+        self._log.print_log('Кадастровые номера синхронизированы.')
+
         prev_in_data = self._get_inlist_data(self._luid)
         flag = False
         fix_num = 1
@@ -216,14 +224,14 @@ class ViApp:
                 'Ошибка обработки исходящих файлов при обновлении.', self._log.ERROR)
             return False
 
-        fixed_cadnums = set()
-        for link_info in self._l_xml_to_cadnum.data.values():
-            fixed_cadnums.add(link_info[1])
+        fixed_cadnums = {link_info[1]
+                         for link_info in self._l_xml_to_cadnum.data.values()}
         self._total_cadnums = len(fixed_cadnums)
         self._log.print_log(
             'Перечень кадастровых номеров для переноса сформирован')
         cursor = self._conn.cursor()
         xml_name_to_fix = dict()
+        xml_link_to_fix = dict()
         for cadnum_id in fixed_cadnums:
             sql_str = f"""
             SELECT tp.param_typ_id, tp.value, tlx.xml_name FROM t_parameter tp
@@ -237,19 +245,18 @@ class ViApp:
             param_typ_id <> 7000 AND
             param_typ_id <> 8000;
             """
-            xml_link_to_fix = dict()
             cursor.execute(sql_str)
             for row in cursor.fetchall():
-                if not (row[2] in xml_name_to_fix.keys()):
+                try:
+                    xml_id = xml_name_to_fix[row[2]]
+                except KeyError:
                     xml_id = self._t_list_xml.add(self._luid, row[2], False)
                     xml_name_to_fix[row[2]] = xml_id
-                else:
-                    xml_id = xml_name_to_fix[row[2]]
-                if not (cadnum_id in xml_link_to_fix.keys()):
+                try:
+                    link_id = xml_link_to_fix[cadnum_id]
+                except KeyError:
                     link_id = self._l_xml_to_cadnum.add(xml_id, cadnum_id)
                     xml_link_to_fix[cadnum_id] = link_id
-                else:
-                    link_id = xml_link_to_fix[cadnum_id]
                 self._t_parameter.add(link_id, row[0], row[1])
         cursor.close()
         self._log.print_log(
@@ -292,13 +299,14 @@ class ViApp:
             for realty_soup in xml_soup.select('Real_Estate'):
                 cadnum_code = realty_soup.find('CadastralNumber').get_text()
                 cadnum_id = self._t_cadnum.get_id(cadnum_code)
-                if not cadnum_id:
-                    self._log.print_log(f'Кадастровый номер {cadnum_code} не найден во БД.',
-                                        self._log.ERROR)
-                    return False
-                link_id = self._l_xml_to_cadnum.add(xml_id, cadnum_id)
-                self._t_parameter.add(
-                    link_id, parser.group_dict_id()[0], realty_groups[realty_soup['ID_Group']])
+                if cadnum_id is None:
+                    self._log.print_log(f'Исходящий список содержит КН {cadnum_code}, ' +
+                                        'которого нет во входящем списке. Пропускаю.',
+                                        self._log.WARNING)
+                else:
+                    link_id = self._l_xml_to_cadnum.add(xml_id, cadnum_id)
+                    self._t_parameter.add(
+                        link_id, parser.group_dict_id()[0], realty_groups[realty_soup['ID_Group']])
         return True
 
     def _cost_xml(self, xml_files: list) -> bool:
@@ -320,23 +328,24 @@ class ViApp:
             for realty_soup in xml_soup.select('Parcel'):
                 cadnum_code = realty_soup['CadastralNumber']
                 cadnum_id = self._t_cadnum.get_id(cadnum_code)
-                if not cadnum_id:
-                    self._log.print_log(f'Кадастровый номер {cadnum_code} не найден во входящем списке.',
-                                        self._log.ERROR)
-                    return False
-                try:
-                    if self._initial_cadnums[cadnum_code]:
-                        self._new_cadnums_rated += 1
-                    else:
+                if cadnum_id is None:
+                    self._log.print_log(f'Исходящий список содержит КН {cadnum_code}, ' +
+                                        'которого нет во входящем списке. Пропускаю.',
+                                        self._log.WARNING)
+                else:
+                    try:
+                        if self._initial_cadnums[cadnum_code]:
+                            self._new_cadnums_rated += 1
+                        else:
+                            self._old_cadnums_rated += 1
+                    except KeyError:
                         self._old_cadnums_rated += 1
-                except KeyError:
-                    self._old_cadnums_rated += 1
-                link_id = self._l_xml_to_cadnum.add(xml_id, cadnum_id)
-                spec_cadcost = parser.spec_cadcost(realty_soup)
-                self._t_parameter.add(
-                    link_id, spec_cadcost[0], spec_cadcost[1])
-                cadcost = parser.cadcost(realty_soup)
-                self._t_parameter.add(link_id, cadcost[0], cadcost[1])
+                    link_id = self._l_xml_to_cadnum.add(xml_id, cadnum_id)
+                    spec_cadcost = parser.spec_cadcost(realty_soup)
+                    self._t_parameter.add(
+                        link_id, spec_cadcost[0], spec_cadcost[1])
+                    cadcost = parser.cadcost(realty_soup)
+                    self._t_parameter.add(link_id, cadcost[0], cadcost[1])
         return True
 
     def _close_list(self) -> None:
@@ -351,16 +360,22 @@ class ViApp:
             f"out_new_objects_rated = {self._new_cadnums_rated}, " +
             f"out_old_objects_rated = {self._old_cadnums_rated}, " +
             f"out_objects_not_rated = {self._total_cadnums - self._new_cadnums_rated - self._old_cadnums_rated} " +
-            f"WHERE list_id = '{str(self._luid)}'::uuid;")
+            f"WHERE list_id = '{self._luid}';")
         cursor.close()
 
-    def _fill_cadnum(self) -> None:
+    def _fill_cadnum(self, list_id: UUID = None) -> None:
         """
         Производит первичное заполнение перечня кадастровых номеров объектов
         """
         cursor = self._conn.cursor()
-        cursor.execute(
-            f'SELECT cadnum_id, cadnum_code FROM {self._t_cadnum.t_name};')
+        if list_id is None:
+            sql_str = f'SELECT cadnum_id, cadnum_code FROM {self._t_cadnum.t_name};'
+        else:
+            sql_str = f'SELECT tc.cadnum_id, tc.cadnum_code FROM {self._t_cadnum.t_name} tc ' + \
+                f'INNER JOIN {self._l_xml_to_cadnum.t_name} lx ON tc.cadnum_id = lx.cadnum_id ' + \
+                f'INNER JOIN {self._t_list_xml.t_name} xm ON lx.xml_id = xm.xml_id ' + \
+                f"WHERE xm.list_id = '{list_id}';"
+        cursor.execute(sql_str)
         for row in cursor.fetchall():
             self._t_cadnum.add_db(row[0], row[1])
         cursor.close()
@@ -382,7 +397,7 @@ class ViApp:
         """
         cursor = self._conn.cursor()
         cursor.execute(
-            f"SELECT cadnum_code FROM {self._t_cadnum.t_name} WHERE first_list_id = '{str(self._luid)}';")
+            f"SELECT cadnum_code FROM {self._t_cadnum.t_name} WHERE first_list_id = '{self._luid}';")
         for elem in cursor.fetchall():
             self._initial_cadnums[elem[0]] = True
         cursor.close()
@@ -393,7 +408,7 @@ class ViApp:
         """
         cursor = self._conn.cursor()
         cursor.execute(
-            f"SELECT (in_new_objects_num + in_old_objects_num) total_cadnums FROM {self._t_list.t_name} WHERE list_id = '{str(self._luid)}';")
+            f"SELECT (in_new_objects_num + in_old_objects_num) total_cadnums FROM {self._t_list.t_name} WHERE list_id = '{self._luid}';")
         self._total_cadnums = cursor.fetchall()[0][0]
         cursor.close()
 
@@ -418,7 +433,7 @@ class ViApp:
         """
         cursor = self._conn.cursor()
         cursor.execute(
-            "SELECT " + self._t_list.fields[1:-1] + f" FROM {self._t_list.t_name} WHERE list_id='{str(list_id)}';")
+            "SELECT " + self._t_list.fields[1:-1] + f" FROM {self._t_list.t_name} WHERE list_id='{list_id}';")
         result = list(cursor.fetchall()[0])
         cursor.close()
         return result
