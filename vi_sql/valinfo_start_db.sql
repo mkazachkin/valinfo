@@ -40,7 +40,7 @@ SET default_table_access_method = heap;
 
 CREATE TABLE public.d_paragraph (
     paragraph_id integer NOT NULL,
-    paragraph_code character varying(6) NOT NULL,
+    paragraph_code character varying(10) NOT NULL,
     paragraph_annotation character varying NOT NULL
 );
 ALTER TABLE public.d_paragraph OWNER TO postgres;
@@ -168,10 +168,24 @@ COMMENT ON COLUMN public.t_parameter.param_id IS 'Идентификатор';
 COMMENT ON COLUMN public.t_parameter.link_id IS 'Идентификатор связи объекта с XML файлом (и перечнем)';
 COMMENT ON COLUMN public.t_parameter.param_typ_id IS 'Идентификатор названия параметра';
 
-INSERT INTO public.d_paragraph VALUES (13, 'Ст. 13', 'Перечень объектов недвижимости, подлежащий государственной кадастровой оценке');
-INSERT INTO public.d_paragraph VALUES (15, 'Ст. 15', 'Перечень вновь учтенных и ранее учтенных объектов, в сведения о которых внесены изменения до даты начала применения кадастровой стоимости');
-INSERT INTO public.d_paragraph VALUES (16, 'Ст. 16', 'Перечень вновь учтенных объектов и ранее учтенных объектов, в сведения о которых внесены изменения');
-INSERT INTO public.d_paragraph VALUES (21, 'Ст. 21', 'Перечень объектов недвижимости, в сведениях о которых содержались ошибки при определении кадастровой стоимости');
+CREATE TABLE public.t_parameter_annulment (
+    annulment_id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
+    list_id uuid NOT NULL,
+    param_id uuid NOT NULL
+);
+ALTER TABLE public.t_parameter_annulment OWNER TO postgres;
+COMMENT ON TABLE public.t_parameter_annulment IS 'Таблица аннулированных результатов оценки кадастровой стоимости';
+COMMENT ON COLUMN public.t_parameter_annulment.annulment_id IS 'Идентификатор';
+COMMENT ON COLUMN public.t_parameter_annulment.list_id IS 'Идентификатор перечня корректировки';
+COMMENT ON COLUMN public.t_parameter_annulment.param_id IS 'Идентификатор корректируемого параметра';
+
+INSERT INTO public.d_paragraph VALUES (130, 'Ст. 13', 'Перечень объектов недвижимости, подлежащий государственной кадастровой оценке');
+INSERT INTO public.d_paragraph VALUES (150, 'Ст. 15', 'Перечень вновь учтенных и ранее учтенных объектов, в сведения о которых внесены изменения до даты начала применения кадастровой стоимости');
+INSERT INTO public.d_paragraph VALUES (160, 'Ст. 16', 'Перечень вновь учтенных объектов и ранее учтенных объектов, в сведения о которых внесены изменения');
+INSERT INTO public.d_paragraph VALUES (161, 'Ст. 16.15', 'Перечень вновь учтенных и ранее учтенных объектов, оцениваемых по ст. 15 после завершения соответствующего тура оценки');
+INSERT INTO public.d_paragraph VALUES (210, 'Ст. 21', 'Перечень объектов недвижимости, в сведениях о которых содержались ошибки при определении кадастровой стоимости');
+INSERT INTO public.d_paragraph VALUES (211, 'Ст. 21.00', 'Перечень объектов недвижимости, в сведениях о которых содержались ошибки при определении кадастровой стоимости');
+INSERT INTO public.d_paragraph VALUES (212, 'Ст. 21.16', 'Перечень вновь учтенных объектов и ранее учтенных объектов, оцениваемых после завершения соответствующего тура оценки');
 
 INSERT INTO public.d_parameter_type VALUES (1000, 1001, '_string', 'Вид земельного участка');
 INSERT INTO public.d_parameter_type VALUES (2000, 55, '_float', 'Площадь');
@@ -244,6 +258,8 @@ ALTER TABLE ONLY public.t_list_xml
     ADD CONSTRAINT t_list_xml_pkey PRIMARY KEY (xml_id);
 ALTER TABLE ONLY public.t_parameter
     ADD CONSTRAINT t_parameter_pkey PRIMARY KEY (param_id);
+ALTER TABLE ONLY public.t_parameter_annulment
+    ADD CONSTRAINT t_parameter_annulment_pkey PRIMARY KEY (annulment_id);
 
 CREATE UNIQUE INDEX d_paragraph_paragraph_code_idx ON public.d_paragraph USING btree (paragraph_code);
 CREATE INDEX d_parameter_type_unit_id_idx ON public.d_parameter_type USING btree (unit_id);
@@ -258,6 +274,8 @@ CREATE INDEX t_list_paragraph_id_idx ON public.t_list USING btree (paragraph_id)
 CREATE INDEX t_list_xml_list_id_idx ON public.t_list_xml USING btree (list_id);
 CREATE INDEX t_parameter_link_id_idx ON public.t_parameter USING btree (link_id);
 CREATE INDEX t_parameter_param_typ_id_idx ON public.t_parameter USING btree (param_typ_id);
+CREATE INDEX t_parameter_annulment_list_id_idx ON public.t_parameter_annulment USING btree (list_id);
+CREATE UNIQUE INDEX t_parameter_annulment_param_id_idx ON public.t_parameter_annulment USING btree (param_id);
 
 ALTER TABLE ONLY public.d_parameter_type
     ADD CONSTRAINT d_parameter_type_unit_id_fkey FOREIGN KEY (unit_id) REFERENCES public.d_unit(unit_id);
@@ -277,3 +295,7 @@ ALTER TABLE ONLY public.t_parameter
     ADD CONSTRAINT t_parameter_link_id_fkey FOREIGN KEY (link_id) REFERENCES public.l_xml_to_cadnum(link_id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.t_parameter
     ADD CONSTRAINT t_parameter_param_typ_id_fkey FOREIGN KEY (param_typ_id) REFERENCES public.d_parameter_type(param_typ_id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.t_parameter_annulment
+    ADD CONSTRAINT t_parameter_annulment_list_id_fkey FOREIGN KEY (list_id) REFERENCES public.t_list(list_id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.t_parameter_annulment
+    ADD CONSTRAINT t_parameter_annulment_param_id_fkey FOREIGN KEY (param_id) REFERENCES public.t_parameter(param_id) ON DELETE CASCADE;

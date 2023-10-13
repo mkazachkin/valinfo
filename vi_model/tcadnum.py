@@ -33,10 +33,11 @@ class TCadnum:
             cadnum_id: UUID     - Ранее присвоенный идентификатор объекта недвижимости
             list_id: UUID       - Идентификатор перечня, в котором пришел кадастровый номер
         """
-        if cadnum_code in self._cod.keys():
+        try:
+            result = self._cod[cadnum_code]
             self._old += 1
-            return self._cod[cadnum_code]
-        else:
+            return result
+        except KeyError:
             cadnum_id = uuid4()
             values = [realty_id, cadnum_code, list_id]
             self._data[cadnum_id] = tuple(self._types[i+1](values[i])

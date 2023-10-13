@@ -52,6 +52,8 @@ class Data4Web:
                         du.unit_annotation
                     FROM
                         t_parameter tp
+                    LEFT JOIN t_parameter_annulment tpa ON
+                        tp.param_id = tpa.param_id                        
                     LEFT JOIN l_xml_to_cadnum lxc ON
                         tp.link_id = lxc.link_id
                     LEFT JOIN t_cadnum tc ON
@@ -65,6 +67,7 @@ class Data4Web:
                     LEFT JOIN d_unit du ON
                         dpt.unit_id = du.unit_id
                     WHERE right(replace(tc.cadnum_code, ':', ''), 3) = '{level1}{level2}{level3}'
+                        AND tpa.annulment_id IS NULL
                     ORDER BY
                         tc.cadnum_code,
                         tl.act_date,

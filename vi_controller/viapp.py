@@ -23,6 +23,7 @@ class ViApp:
 
     def __init__(self, **kwargs):
         self._log = ViLogger('viapp.log')
+        self._warnings = list()
         dbhost = kwargs.get('dbhost', None)
         dbname = kwargs.get('dbname', None)
         dbuser = kwargs.get('dbuser', None)
@@ -32,7 +33,9 @@ class ViApp:
             self._conn = psycopg2.connect(
                 host=dbhost, dbname=dbname, user=dbuser, password=dbpwrd)
         except psycopg2.OperationalError:
-            self._log.print_log('Ошибка подключения к БД.', self._log.ERROR)
+            err_message = 'Ошибка подключения к БД.'
+            self._log.print_log(err_message, self._log.ERROR)
+            self._warnings.append([err_message, self._log.ERROR])
             raise Exception()
         self._log.print_log('База данных подключена.')
 
@@ -71,8 +74,17 @@ class ViApp:
         self._fill_list_codes()
         self._log.print_log('Список перечней синхронизирован.')
 
-    def __del__(self):
+    def cleanup(self):
         self._conn.close()
+        warning_log = ViLogger('warnings.log')
+        if len(self._warnings) == 0:
+            warning_log.print_log(
+                'Ошибок и предупреждений при загрузке перечня не зафиксировано')
+        else:
+            warning_log.print_log(
+                'При загрузке зафиксированы предупреждения и ошибки.')
+            for warning in self._warnings:
+                warning_log.print_log(warning[0], warning[1])
 
     def in_xml(self) -> bool:
         """
@@ -83,15 +95,17 @@ class ViApp:
         self._log.print_log('Кадастровые номера синхронизированы.')
 
         if self._t_list.get_id(self._icode, False):
-            self._log.print_log(
-                'Перечень с указанным номером уже был ранее загружен.', self._log.ERROR)
+            err_message = f'Перечень {self._icode} уже был ранее загружен.'
+            self._log.print_log(err_message, self._log.ERROR)
+            self._warnings.append([err_message, self._log.ERROR])
             return False
         self._log.print_log('Загрузка входящего перечня начата.')
         # Находим все входящие XML
-        xml_files = get_xml_list(self._path, 'listinfo_*.xml')
+        xml_files = get_xml_list(self._path, ['*.xml'])
         if xml_files is None:
-            self._log.print_log(
-                'Входящие XML-файлы не найдены.', self._log.ERROR)
+            err_message = 'Входящие XML-файлы не найдены.'
+            self._log.print_log(err_message, self._log.ERROR)
+            self._warnings.append([err_message, self._log.ERROR])
             return False
 
         # В обработке после всех файлов 6 таблиц
@@ -102,31 +116,44 @@ class ViApp:
         # Резервируем id для перечня и заполняем
         self._luid = self._t_list.get_id(self._icode)
 
+        duplicates_check = dict()
         # Начинаем обработку каждого XML
         for xml in xml_files:
             self._log.print_log(
                 f'Обработка файла {xml}', self._log.INFO, self._log.IS_ACTION)
             xml_soup: BeautifulSoup = get_soup(xml)
             if not xml_soup:
-                self._log.print_log(
-                    f'Не удалось получить содержимое файла {xml}.', self._log.ERROR)
+                err_message = f'Не удалось получить содержимое файла {xml}.'
+                self._log.print_log(err_message, self._log.ERROR)
+                self._warnings.append([err_message, self._log.ERROR])
                 return False
             xml_id = self._t_list_xml.add(self._luid, os.path.basename(xml))
 
             # Обрабатываем каждый из видов недвижимости и заполняем кадастровые номера
             for o_type in self._d_realty.keys():
                 for realty_soup in xml_soup.select(o_type):
-                    cadnum_id = self._t_cadnum.add(
-                        self._d_realty[o_type], realty_soup['CadastralNumber'], self._luid)
-                    link_id = self._l_xml_to_cadnum.add(xml_id, cadnum_id)
-                    # Парсим входящиее характеристики объекта и добавляем их в БД
-                    for param_func in self._in_params[o_type]:
-                        param = param_func(realty_soup)
-                        # Если дата применения КС задана, то используем ее
-                        if param_func == parser.fond_date and self._adate:
-                            param[1] = self._adate
-                        if param[1] is not None:
-                            self._t_parameter.add(link_id, param[0], param[1])
+                    current_cadnum = realty_soup['CadastralNumber']
+                    # Дубликаты не обрабатываем
+                    try:
+                        if duplicates_check[current_cadnum]:
+                            err_message = f'Кадастровый номер {current_cadnum} дублируется в перечне'
+                            self._log.print_log(err_message, self._log.WARNING)
+                            self._warnings.append(
+                                [err_message, self._log.WARNING])
+                    except KeyError:
+                        duplicates_check[current_cadnum] = True
+                        cadnum_id = self._t_cadnum.add(
+                            self._d_realty[o_type], current_cadnum, self._luid)
+                        link_id = self._l_xml_to_cadnum.add(xml_id, cadnum_id)
+                        # Парсим входящиее характеристики объекта и добавляем их в БД
+                        for param_func in self._in_params[o_type]:
+                            param = param_func(realty_soup)
+                            # Если дата применения КС задана, то используем ее
+                            if param_func == parser.fond_date and self._adate:
+                                param[1] = self._adate
+                            if param[1] is not None:
+                                self._t_parameter.add(
+                                    link_id, param[0], param[1])
         if self._fdate_f is None:
             self._fdate_f = self._t_parameter.found_dates[0]
             self._fdate_l = self._t_parameter.found_dates[1]
@@ -157,13 +184,17 @@ class ViApp:
             self._log.print_log('Кадастровые номера синхронизированы.')
             self._fill_initial_cadnums()
 
-        fd_files = get_xml_list(self._path, 'fd_*.xml')
-        cost_files = get_xml_list(self._path, 'cost_*.xml')
+        fd_files = get_xml_list(self._path, ['fd_*.xml'])
+        cost_files = get_xml_list(self._path, ['cost_*.xml'])
         if fd_files is None:
-            self._log.print_log('FD-файлы не найдены.', self._log.ERROR)
+            err_message = 'FD-файлы не найдены.'
+            self._log.print_log(err_message, self._log.ERROR)
+            self._warnings.append([err_message, self._log.ERROR])
             return False
         if cost_files is None:
-            self._log.print_log('COST-файлы не найдены.', self._log.ERROR)
+            err_message = 'COST-файлы не найдены.'
+            self._log.print_log(err_message, self._log.ERROR)
+            self._warnings.append([err_message, self._log.ERROR])
             return False
         if not updating:
             # В обработке после всех файлов 5 таблиц
@@ -178,9 +209,9 @@ class ViApp:
         if not self._fd_xml(fd_files):
             return False
         self._log.print_log('Загрузка исходящего COST перечня начата.')
-
         if not self._cost_xml(cost_files):
             return False
+
         if not updating:
             self._fill_total_cadnums()
             self._insert_data(self._t_list)
@@ -207,7 +238,6 @@ class ViApp:
         fix_num = 1
         while not flag:
             if self._t_list.get_id(prev_in_data[4] + ' испр. ' + str(fix_num), False) is None:
-                self._puid = prev_in_data[1]
                 self._rcode = prev_in_data[2]
                 self._rdate = prev_in_data[3]
                 self._icode = prev_in_data[4] + ' испр. ' + str(fix_num)
@@ -220,8 +250,9 @@ class ViApp:
                 fix_num += 1
 
         if not self.out_xml(True):
-            self._log.print_log(
-                'Ошибка обработки исходящих файлов при обновлении.', self._log.ERROR)
+            err_message = 'Ошибка обработки исходящих файлов при обновлении.'
+            self._log.print_log(err_message, self._log.ERROR)
+            self._warnings.append([err_message, self._log.ERROR])
             return False
 
         fixed_cadnums = {link_info[1]
@@ -261,7 +292,7 @@ class ViApp:
         cursor.close()
         self._log.print_log(
             'Перенос характеристик из оригинального перечня завершен', self._log.INFO, self._log.IS_ACTION)
-        self._luid = self._t_list.add(21, self._rcode, self._rdate, self._icode, self._idate,
+        self._luid = self._t_list.add(self._puid, self._rcode, self._rdate, self._icode, self._idate,
                                       0, self._total_cadnums, self._fdate_f, self._fdate_l,
                                       self._tcode, self._tdate, self._new_cadnums_rated, self._old_cadnums_rated,
                                       self._total_cadnums - self._new_cadnums_rated - self._old_cadnums_rated)
@@ -280,19 +311,39 @@ class ViApp:
         Аргументы:
             xml_files: list     - Список XML файлов, которые необходимо обработать
         """
+        flag = False
         for xml in xml_files:
             self._log.print_log(
                 f'Обработка файла {xml}', self._log.INFO, self._log.IS_ACTION)
             xml_soup: BeautifulSoup = get_soup(xml)
             if not xml_soup:
-                self._log.print_log(
-                    f'Не могу считать файл {xml}', self._log.ERROR)
+                err_message = f'Не могу считать файл {xml}'
+                self._log.print_log(err_message, self._log.ERROR)
+                self._warnings.append([err_message, self._log.ERROR])
                 return False
+            report_soup = xml_soup.find('Report_Details')
+            act_code_tmp = convertor.to_str(report_soup['Number'])
+            act_date_tmp = convertor.to_date(report_soup['Date'])
+            if act_code_tmp is None or act_date_tmp is None:
+                err_message = f'Не могу получить информацию о перечне в файле {xml}'
+                self._log.print_log(err_message, self._log.ERROR)
+                self._warnings.append([err_message, self._log.ERROR])
+                return False
+            if not flag:
+                flag = True
+                self._tdate = act_date_tmp
+                self._tcode = act_code_tmp
+            else:
+                if self._tdate != act_date_tmp or self._tcode != act_code_tmp:
+                    err_message = f'Информация по перечню в  файле {xml} отличается от ранее загруженной'
+                    self._log.print_log(err_message, self._log.WARNING)
+                    self._warnings.append([err_message, self._log.WARNING])
 
             realty_groups = parser.group_dict(xml_soup)
             if not realty_groups:
-                self._log.print_log(
-                    f'Не могу считать группы недвижимости в файле {xml}', self._log.ERROR)
+                err_message = f'Не могу считать группы недвижимости в файле {xml}'
+                self._log.print_log(err_message, self._log.ERROR)
+                self._warnings.append([err_message, self._log.ERROR])
                 return False
             xml_id = self._t_list_xml.add(
                 self._luid, os.path.basename(xml), True)
@@ -300,9 +351,9 @@ class ViApp:
                 cadnum_code = realty_soup.find('CadastralNumber').get_text()
                 cadnum_id = self._t_cadnum.get_id(cadnum_code)
                 if cadnum_id is None:
-                    self._log.print_log(f'Исходящий список содержит КН {cadnum_code}, ' +
-                                        'которого нет во входящем списке. Пропускаю.',
-                                        self._log.WARNING)
+                    err_message = f'Исходящий список содержит КН {cadnum_code}, которого нет во входящем списке. Пропускаю.'
+                    self._log.print_log(err_message, self._log.WARNING)
+                    self._warnings.append([err_message, self._log.WARNING])
                 else:
                     link_id = self._l_xml_to_cadnum.add(xml_id, cadnum_id)
                     self._t_parameter.add(
@@ -329,9 +380,9 @@ class ViApp:
                 cadnum_code = realty_soup['CadastralNumber']
                 cadnum_id = self._t_cadnum.get_id(cadnum_code)
                 if cadnum_id is None:
-                    self._log.print_log(f'Исходящий список содержит КН {cadnum_code}, ' +
-                                        'которого нет во входящем списке. Пропускаю.',
-                                        self._log.WARNING)
+                    err_message = f'Исходящий список содержит КН {cadnum_code}, которого нет во входящем списке. Пропускаю.'
+                    self._log.print_log(err_message, self._log.WARNING)
+                    self._warnings.append([err_message, self._log.WARNING])
                 else:
                     try:
                         if self._initial_cadnums[cadnum_code]:
